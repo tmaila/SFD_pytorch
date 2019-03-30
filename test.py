@@ -14,18 +14,26 @@ import numpy as np
 import net_s3fd
 from bbox import *
 
-def detect(net,img):
+W_DETECT = 160
+H_DETECT = 120
+
+@torch.no_grad()
+def detect(net,img_in):
+    H_IN,W_IN,C_IN = img_in.shape
+    img = cv2.resize(img_in, (W_DETECT,H_DETECT))
+    fx = W_IN / W_DETECT
+    fy = H_IN / H_DETECT
     img = img - np.array([104,117,123])
     img = img.transpose(2, 0, 1)
     img = img.reshape((1,)+img.shape)
 
-    img = Variable(torch.from_numpy(img).float(),volatile=True).cuda()
+    img = Variable(torch.from_numpy(img).float()).cuda()
     BB,CC,HH,WW = img.size()
     olist = net(img)
 
     bboxlist = []
-    for i in range(len(olist)/2): olist[i*2] = F.softmax(olist[i*2])
-    for i in range(len(olist)/2):
+    for i in range(len(olist)//2): olist[i*2] = F.softmax(olist[i*2])
+    for i in range(len(olist)//2):
         ocls,oreg = olist[i*2].data.cpu(),olist[i*2+1].data.cpu()
         FB,FC,FH,FW = ocls.size() # feature map size
         stride = 2**(i+2)    # 4,8,16,32,64,128
@@ -41,7 +49,7 @@ def detect(net,img):
             box = decode(loc,priors,variances)
             x1,y1,x2,y2 = box[0]*1.0
             # cv2.rectangle(imgshow,(int(x1),int(y1)),(int(x2),int(y2)),(0,0,255),1)
-            bboxlist.append([x1,y1,x2,y2,score])
+            bboxlist.append([x1*fx,y1*fy,x2*fx,y2*fy,score])
     bboxlist = np.array(bboxlist)
     if 0==len(bboxlist): bboxlist=np.zeros((1, 5))
     return bboxlist
@@ -63,23 +71,28 @@ net.eval()
 
 
 if args.path=='CAMERA': cap = cv2.VideoCapture(0)
+# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 160)
+# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 120)
+
 while(True):
     if args.path=='CAMERA': ret, img = cap.read()
     else: img = cv2.imread(args.path)
 
-    imgshow = np.copy(img)
+    t1 = time.time()
     bboxlist = detect(net,img)
+    t2 = time.time()
+    print("time: {}".format(t2-t1))
 
     keep = nms(bboxlist,0.3)
     bboxlist = bboxlist[keep,:]
     for b in bboxlist:
         x1,y1,x2,y2,s = b
         if s<0.5: continue
-        cv2.rectangle(imgshow,(int(x1),int(y1)),(int(x2),int(y2)),(0,255,0),1)
-    cv2.imshow('test',imgshow)
+        cv2.rectangle(img,(int(x1),int(y1)),(int(x2),int(y2)),(0,255,0),1)
+    cv2.imshow('test',img)
 
     if args.path=='CAMERA':
         if cv2.waitKey(1) & 0xFF == ord('q'): break
     else:
-        cv2.imwrite(args.path[:-4]+'_output.png',imgshow)
+        cv2.imwrite(args.path[:-4]+'_output.png',img)
         if cv2.waitKey(0) or True: break
