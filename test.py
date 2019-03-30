@@ -32,7 +32,7 @@ def detect(net,img_in):
     olist = net(img)
 
     bboxlist = []
-    for i in range(len(olist)//2): olist[i*2] = F.softmax(olist[i*2])
+    for i in range(len(olist)//2): olist[i*2] = F.softmax(olist[i*2], dim=1)
     for i in range(len(olist)//2):
         ocls,oreg = olist[i*2].data.cpu(),olist[i*2+1].data.cpu()
         FB,FC,FH,FW = ocls.size() # feature map size
@@ -78,10 +78,10 @@ while(True):
     if args.path=='CAMERA': ret, img = cap.read()
     else: img = cv2.imread(args.path)
 
-    t1 = time.time()
+    # t1 = time.time()
     bboxlist = detect(net,img)
-    t2 = time.time()
-    print("time: {}".format(t2-t1))
+    # t2 = time.time()
+    # print("time: {}".format(t2-t1))
 
     keep = nms(bboxlist,0.3)
     bboxlist = bboxlist[keep,:]
