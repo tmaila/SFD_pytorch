@@ -1,6 +1,6 @@
 # cython iou.pyx
-# gcc -c -fPIC -I/usr/include/python2.7 -o iou.o iou.c
-# gcc -shared -L/usr/lib/x86_64-linux-gnu -lpython2.7 iou.o -o iou.so
+# gcc -c -fPIC -I/usr/local/include/python3.7m -o iou.o iou.c
+# gcc -shared -L/usr/lib/x86_64-linux-gnu -lpython3.7m iou.o -o iou.so
 
 def IOU(float ax1,float ay1,float ax2,float ay2,float bx1,float by1,float bx2,float by2):
     cdef float sa,sb,x1,y1,x2,y2,w,h

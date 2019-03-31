@@ -12,7 +12,7 @@ import argparse
 import numpy as np
 
 import net_s3fd
-from bbox import *
+from bbox import decode, nms
 
 W_DETECT = 160
 H_DETECT = 120
@@ -67,21 +67,22 @@ net = getattr(net_s3fd,args.net)()
 if args.model!='' :net.load_state_dict(torch.load(args.model))
 else: print('Please set --model parameter!')
 net.cuda()
-net.eval()
+net.eval() # set dropout and batch normalization layers to evaluation mode
 
 
 if args.path=='CAMERA': cap = cv2.VideoCapture(0)
 # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 160)
 # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 120)
 
+cv2.namedWindow('image',cv2.WINDOW_NORMAL)
 while(True):
     if args.path=='CAMERA': ret, img = cap.read()
     else: img = cv2.imread(args.path)
 
-    # t1 = time.time()
+    t1 = time.time()
     bboxlist = detect(net,img)
-    # t2 = time.time()
-    # print("time: {}".format(t2-t1))
+    t2 = time.time()
+    print("time: {}".format(t2-t1))
 
     keep = nms(bboxlist,0.3)
     bboxlist = bboxlist[keep,:]
@@ -89,7 +90,7 @@ while(True):
         x1,y1,x2,y2,s = b
         if s<0.5: continue
         cv2.rectangle(img,(int(x1),int(y1)),(int(x2),int(y2)),(0,255,0),1)
-    cv2.imshow('test',img)
+    cv2.imshow('image',img)
 
     if args.path=='CAMERA':
         if cv2.waitKey(1) & 0xFF == ord('q'): break
